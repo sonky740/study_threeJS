@@ -6,3 +6,12 @@ body {
 	left: 0;
 	top: 0;
 }
+
+.btn-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	position: absolute;
+	top: 20px;
+	left: 20px;
+}
