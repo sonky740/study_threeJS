@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// ----- 주제: 기본 Geometry 파티클
+// ----- 주제: Point 좌표에 Mesh 생성하기
 
 export default function example() {
   // Renderer
@@ -40,15 +40,31 @@ export default function example() {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
+  // Mesh
+  const planeMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, 0.3),
+    new THREE.MeshBasicMaterial({
+      color: 'red',
+      side: THREE.DoubleSide,
+    })
+  );
+
   // Points
-  // const geometry = new THREE.BoxGeometry(2, 2, 2);
-  const geometry = new THREE.SphereGeometry(1, 32, 32);
-  const material = new THREE.PointsMaterial({
-    size: 2,
-    sizeAttenuation: false
-  });
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
+  const sphereGeometry = new THREE.SphereGeometry(1, 8, 8);
+  const positionArray = sphereGeometry.attributes.position.array;
+
+  // 여러개의 Plane Mesh 생성
+  let plane;
+  for (let i = 0; i < positionArray.length; i += 3) {
+    plane = planeMesh.clone();
+    plane.position.x = positionArray[i];
+    plane.position.y = positionArray[i + 1];
+    plane.position.z = positionArray[i + 2];
+
+    plane.lookAt(0, 0, 0);
+
+    scene.add(plane);
+  }
 
   // 그리기
   const clock = new THREE.Clock();
