@@ -1,5 +1,6 @@
 import { cm1, cm2 } from './common';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Pillar } from './Pillar';
 import { Floor } from './Floor';
@@ -11,8 +12,9 @@ import { Player } from './Player';
 // ----- 주제: The Bridge 게임 만들기
 
 // Renderer
+const canvas = document.querySelector('#three-canvas');
 const renderer = new THREE.WebGLRenderer({
-  canvas: cm1.canvas,
+  canvas,
   antialias: true,
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -70,6 +72,40 @@ cm1.scene.add(spotLight1, spotLight2, spotLight3, spotLight4);
 // Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+
+// 물리 엔진
+cm1.world.gravity.set(0, -9.82, 0);
+
+const defaultContactMaterial = new CANNON.ContactMaterial(
+  cm1.defaultMaterial,
+  cm1.defaultMaterial,
+  {
+    friction: 0.3,
+    restitution: 0.2,
+  }
+);
+
+const glassDefaultContactMaterial = new CANNON.ContactMaterial(
+  cm1.defaultMaterial,
+  cm1.glassMaterial,
+  {
+    friction: 1,
+    restitution: 0,
+  }
+);
+
+const playerGlassContactMaterial = new CANNON.ContactMaterial(
+  cm1.glassMaterial,
+  cm1.playerMaterial,
+  {
+    friction: 1,
+    restitution: 0,
+  }
+);
+
+cm1.world.defaultContactMaterial = defaultContactMaterial;
+cm1.world.addContactMaterial(glassDefaultContactMaterial);
+cm1.world.addContactMaterial(playerGlassContactMaterial);
 
 // 물체 만들기
 const glassUnitSize = 1.2;
@@ -156,6 +192,24 @@ const player = new Player({
   rotationY: Math.PI,
 });
 
+// Raycaster
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+function checkIntersects() {
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObjects(cm1.scene.children, true);
+  for (const item of intersects) {
+    checkClickedObject(item.object.name);
+    break;
+  }
+}
+function checkClickedObject(objectName) {
+  if (objectName.indexOf('glass') !== -1) {
+    // 유리판을 클릭했을 때
+  }
+}
+
 // 그리기
 const clock = new THREE.Clock();
 
@@ -179,5 +233,10 @@ function setSize() {
 
 // 이벤트
 window.addEventListener('resize', setSize);
+canvas.addEventListener('click', (e) => {
+  mouse.x = (e.clientX / canvas.clientWidth) * 2 - 1;
+  mouse.y = -(e.clientY / canvas.clientHeight) * 2 + 1;
+  checkIntersects();
+});
 
 draw();
