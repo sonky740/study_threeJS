@@ -6,13 +6,17 @@ export class Player extends Stuff {
   constructor(info) {
     super(info);
 
+    this.width = 0.5;
+    this.height = 0.5;
+    this.depth = 0.5;
+
     /**
      * [TODO] 삭제할 것
      * main.js의 itme.mesh.position.copy(item.cannonBody.position);
      * if(fail) item.mesh.quaternion.copy(item.cannonBody.quaternion);
      */
     this.mesh = new Mesh(
-      new BoxGeometry(0.5, 0.5, 0.5),
+      new BoxGeometry(this.width, this.height, this.depth),
       new MeshBasicMaterial({ transparent: true, opacity: 0 })
     );
     this.mesh.castShadow = true;
@@ -44,6 +48,8 @@ export class Player extends Stuff {
       this.actions[2].repetitions = 1;
 
       this.actions[0].play();
+
+      this.setCannonBody();
     });
 
     // this.mesh = new Mesh(this.geometry, this.material);

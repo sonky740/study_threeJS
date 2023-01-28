@@ -2,6 +2,7 @@ import { cm1, cm2 } from './common';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import gsap from 'gsap';
 import { Pillar } from './Pillar';
 import { Floor } from './Floor';
 import { Bar } from './Bar';
@@ -32,7 +33,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.set(-4, 19, 14);
+camera.position.set(0, 17, 15);
 cm1.scene.add(camera);
 
 // Light
@@ -110,13 +111,11 @@ cm1.world.addContactMaterial(playerGlassContactMaterial);
 // 물체 만들기
 const glassUnitSize = 1.2;
 const numberOfGlass = 10;
+const objects = [];
 
 // 바닥
 const floor = new Floor({
   name: 'floor',
-  x: 0,
-  y: 0,
-  z: 0,
 });
 
 // 기둥
@@ -132,6 +131,7 @@ const pillar2 = new Pillar({
   y: 5.5,
   z: glassUnitSize * 12 + glassUnitSize / 2,
 });
+objects.push(pillar1, pillar2);
 
 // 바
 const bar1 = new Bar({ name: 'bar', x: -1.6, y: 10.3, z: 0 });
@@ -155,6 +155,10 @@ for (let i = 0; i < 49; i++) {
 // 유리판
 let glassTypeNumber = 0;
 let glassTypes = [];
+const glassZ = [];
+for (let i = 0; i < numberOfGlass; i++) {
+  glassZ.push(-(i * glassUnitSize * 2 - glassUnitSize * 9));
+}
 for (let i = 0; i < numberOfGlass; i++) {
   glassTypeNumber = Math.round(Math.random());
 
@@ -168,19 +172,25 @@ for (let i = 0; i < numberOfGlass; i++) {
   }
 
   const glass1 = new Glass({
+    step: i + 1,
     name: `glass-${glassTypes[0]}`,
     x: -1,
     y: 10.5,
-    z: i * glassUnitSize * 2 - glassUnitSize * 9,
+    z: glassZ[i],
     type: glassTypes[0],
+    cannonMaterial: cm1.glassMaterial,
   });
   const glass2 = new Glass({
+    step: i + 1,
     name: `glass-${glassTypes[1]}`,
     x: 1,
     y: 10.5,
-    z: i * glassUnitSize * 2 - glassUnitSize * 9,
+    z: glassZ[i],
     type: glassTypes[1],
+    cannonMaterial: cm1.glassMaterial,
   });
+
+  objects.push(glass1, glass2);
 }
 
 // 플레이어
@@ -190,7 +200,10 @@ const player = new Player({
   y: 10.9,
   z: 13,
   rotationY: Math.PI,
+  cannonMaterial: cm1.playerMaterial,
+  mass: 30,
 });
+objects.push(player);
 
 // Raycaster
 const raycaster = new THREE.Raycaster();
@@ -200,13 +213,44 @@ function checkIntersects() {
 
   const intersects = raycaster.intersectObjects(cm1.scene.children, true);
   for (const item of intersects) {
-    checkClickedObject(item.object.name);
+    checkClickedObject(item.object);
     break;
   }
 }
-function checkClickedObject(objectName) {
-  if (objectName.indexOf('glass') !== -1) {
+let fail = false;
+let jumping = false;
+function checkClickedObject(mesh) {
+  if (mesh.name.indexOf('glass') !== -1) {
+    if (jumping || fail) return;
+
     // 유리판을 클릭했을 때
+    if (cm2.step + 1 === mesh.step) {
+      jumping = true;
+      cm2.step++;
+
+      switch (mesh.type) {
+        case 'normal':
+          setTimeout(() => {
+            fail = true;
+          }, 700);
+          break;
+        case 'strong':
+          break;
+      }
+
+      gsap.to(player.cannonBody.position, {
+        duration: 1,
+        x: mesh.position.x,
+        z: glassZ[cm2.step - 1],
+        onComplete: () => {
+          jumping = false;
+        },
+      });
+      gsap.to(player.cannonBody.position, {
+        duration: 0.4,
+        y: 12,
+      });
+    }
   }
 }
 
@@ -217,6 +261,28 @@ function draw() {
   const delta = clock.getDelta();
 
   if (cm1.mixer) cm1.mixer.update(delta);
+
+  cm1.world.step(1 / 60, delta, 3);
+  objects.forEach((item) => {
+    if (item.cannonBody) {
+      if (item.name === 'player') {
+        if (item.modelMesh) {
+          item.modelMesh.position.copy(item.cannonBody.position);
+          if (fail) item.modelMesh.quaternion.copy(item.cannonBody.quaternion);
+        }
+
+        item.modelMesh.position.y += 0.15;
+      } else {
+        item.mesh.position.copy(item.cannonBody.position);
+        item.mesh.quaternion.copy(item.cannonBody.quaternion);
+
+        if (item.modelMesh) {
+          item.modelMesh.position.copy(item.cannonBody.position);
+          item.modelMesh.quaternion.copy(item.cannonBody.quaternion);
+        }
+      }
+    }
+  });
 
   controls.update();
 
