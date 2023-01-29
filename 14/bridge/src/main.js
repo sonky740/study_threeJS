@@ -1,8 +1,9 @@
-import { cm1, cm2 } from './common';
+import { cm1, cm2, sounds } from './common';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import gsap from 'gsap';
+import { PreventDragClick } from './PreventDragClick';
 import { Pillar } from './Pillar';
 import { Floor } from './Floor';
 import { Bar } from './Bar';
@@ -33,8 +34,11 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+const camera2 = camera.clone();
 camera.position.set(0, 17, 15);
-cm1.scene.add(camera);
+camera2.position.y = 0;
+camera2.lookAt(0, 1, 0);
+cm1.scene.add(camera, camera2);
 
 // Light
 const ambientLight = new THREE.AmbientLight(cm2.lightColor, 0.8);
@@ -139,17 +143,22 @@ const bar2 = new Bar({ name: 'bar', x: -0.4, y: 10.3, z: 0 });
 const bar3 = new Bar({ name: 'bar', x: 0.4, y: 10.3, z: 0 });
 const bar4 = new Bar({ name: 'bar', x: 1.6, y: 10.3, z: 0 });
 
+const sideLights = [];
 for (let i = 0; i < 49; i++) {
-  new SideLight({
-    name: 'sideLight',
-    container: bar1.mesh,
-    z: i * 0.5 - glassUnitSize * 10,
-  });
-  new SideLight({
-    name: 'sideLight',
-    container: bar4.mesh,
-    z: i * 0.5 - glassUnitSize * 10,
-  });
+  sideLights.push(
+    new SideLight({
+      name: 'sideLight',
+      container: bar1.mesh,
+      z: i * 0.5 - glassUnitSize * 10,
+    })
+  );
+  sideLights.push(
+    new SideLight({
+      name: 'sideLight',
+      container: bar4.mesh,
+      z: i * 0.5 - glassUnitSize * 10,
+    })
+  );
 }
 
 // 유리판
@@ -217,14 +226,18 @@ function checkIntersects() {
     break;
   }
 }
+
 let fail = false;
 let jumping = false;
+let onReplay = false;
 function checkClickedObject(mesh) {
   if (mesh.name.indexOf('glass') !== -1) {
     if (jumping || fail) return;
 
     // 유리판을 클릭했을 때
     if (cm2.step + 1 === mesh.step) {
+      player.actions[2].stop();
+      player.actions[2].play();
       jumping = true;
       cm2.step++;
 
@@ -232,6 +245,21 @@ function checkClickedObject(mesh) {
         case 'normal':
           setTimeout(() => {
             fail = true;
+            player.actions[0].stop();
+            player.actions[1].play();
+            // 다리 옆 조명 끄기
+            sideLights.forEach((item) => {
+              item.turnOff();
+            });
+
+            setTimeout(() => {
+              onReplay = true;
+              player.cannonBody.position.y = 8;
+
+              setTimeout(() => {
+                onReplay = false;
+              }, 1500);
+            }, 1000);
           }, 700);
           break;
         case 'strong':
@@ -250,6 +278,23 @@ function checkClickedObject(mesh) {
         duration: 0.4,
         y: 12,
       });
+
+      // 클리어
+      if (cm2.step === numberOfGlass && mesh.type === 'strong') {
+        setTimeout(() => {
+          player.actions[2].stop();
+          player.actions[2].play();
+          gsap.to(player.cannonBody.position, {
+            duration: 1,
+            x: mesh.position.x,
+            z: -14,
+          });
+          gsap.to(player.cannonBody.position, {
+            duration: 0.4,
+            y: 12,
+          });
+        }, 1500);
+      }
     }
   }
 }
@@ -286,7 +331,13 @@ function draw() {
 
   controls.update();
 
-  renderer.render(cm1.scene, camera);
+  if (!onReplay) {
+    renderer.render(cm1.scene, camera);
+  } else {
+    camera2.position.x = player.cannonBody.position.x;
+    camera2.position.z = player.cannonBody.position.z;
+    renderer.render(cm1.scene, camera2);
+  }
   renderer.setAnimationLoop(draw);
 }
 
@@ -298,8 +349,11 @@ function setSize() {
 }
 
 // 이벤트
+const preventDragClick = new PreventDragClick(canvas);
 window.addEventListener('resize', setSize);
 canvas.addEventListener('click', (e) => {
+  if (preventDragClick.mouseMoved) return;
+
   mouse.x = (e.clientX / canvas.clientWidth) * 2 - 1;
   mouse.y = -(e.clientY / canvas.clientHeight) * 2 + 1;
   checkIntersects();

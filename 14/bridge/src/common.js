@@ -18,6 +18,7 @@ export const cm2 = {
   step: 0,
   backgroundColor: '#3e1322',
   lightColor: '#ffe9ac',
+  lightOffColor: '#222',
   pillarColor: '#071d28',
   floorColor: '#111',
   barColor: '#441c1d',
@@ -45,6 +46,15 @@ export const mat = {
   glass2: new MeshPhongMaterial({
     color: cm2.glassColor,
     transparent: true,
-    opacity: 0.3,
+    opacity: 0.1,
   }),
+};
+
+const normalSound = new Audio();
+normalSound.src = 'sounds/crash.wav';
+const strongSound = new Audio();
+strongSound.src = 'sounds/wood_hit.wav';
+export const sounds = {
+  normal: normalSound,
+  strong: strongSound,
 };
